@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<link rel="stylesheet" href="stylesheets/style.css">
+</head>
+
+<body>
+	<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+
+	<script>
+		var socket = io.connect('http://localhost:3000');
+
+		socket.on('connect', function (data) {
+			console.log("SocketClient","connect");
+		});
+	</script>
+</body>
+
+</html>
