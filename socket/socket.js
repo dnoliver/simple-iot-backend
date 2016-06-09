@@ -12,6 +12,11 @@ var socket = {
 
 		function onSocketClientConnection(client) {
 			debug('onSocketClientConnection');
+			client.on('data', onSocketClientData.bind(client));
+		}
+		
+		function onSocketClientData(data) {
+			this.broadcast.emit('data', data);
 		}
 	}
 }
