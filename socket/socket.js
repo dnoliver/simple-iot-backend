@@ -6,9 +6,9 @@ var socket = {
 		debug("SocketServer", "init");
 		
 		// This is the SocketIO server, allows comunication with WebClients
-		this.SocketIOServer = SocketIO(server);
+		this.SocketIOServer = SocketIO.listen(server);
 
-		this.SocketIOServer.on('connection', onSocketClientConnection);
+		this.SocketIOServer.sockets.on('connection', onSocketClientConnection);
 
 		function onSocketClientConnection(client) {
 			debug('onSocketClientConnection');
