@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="stylesheets/style.css">
+
+	<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+	<!-- Optional theme -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+	<!-- Latest compiled and minified JavaScript -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+
+	<!-- Momentjs -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
+
+	<!-- C3 -->
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.css" rel="stylesheet">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.js"></script>
+</head>
+
+<body>
+	<div class="container-fluid">
+		<div class="page-header">
+			<h1>Board Consumer <small>Display Data</small></h1>
+		</div>
+
+		<div class="row">
+			<div class="col-xs-12">
+				<h2>Temperature</h2>
+				<div id="Temperature"></div>
+			</div>
+		</div>
+		
+		<div class="row">
+			<div class="col-xs-12">
+				<h2>Light</h2>
+				<div id="Light"></div>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-xs-12">
+				<h2>Loudness</h2>
+				<div id="Loudness"></div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var socket = io();
+
+		var Acumulators = {
+			Temperature: {
+				count: 0,
+				sum: 0
+			},
+			Loudness: {
+				count: 0,
+				sum: 0
+			},
+			Light: {
+				count: 0,
+				sum: 0
+			}
+		}
+
+		socket.on('connect', function () {
+			console.log("SocketClient", "connect");
+			// register this as a controller
+			socket.emit("room", "consumer");
+			// receive producer data
+			socket.on("producer", function (data) {
+				if (data.temperature) {
+					Acumulators.Temperature.count++;
+					Acumulators.Temperature.sum += data.temperature;
+				}
+
+				if (data.loudness) {
+					Acumulators.Loudness.count++;
+					Acumulators.Loudness.sum += data.loudness;
+				}
+
+				if (data.light) {
+					Acumulators.Light.count++;
+					Acumulators.Light.sum += data.light;
+				}
+			});
+		});
+
+		var Data = {
+			Temperature: ["Temperature"],
+			Loudness: ["Loudness"],
+			Light: ["Light"]
+		}
+
+		var Charts = {
+			Temperature: c3.generate({
+				bindto: "#Temperature",
+				data: {
+					labels: true,
+					columns: [Data.Temperature]
+				},
+				axis: {
+					x: {
+						label: "Data"
+					},
+					y: {
+						label: "°C"
+					}
+				}
+			}),
+			Loudness: c3.generate({
+				bindto: "#Loudness",
+				data: {
+					labels: true,
+					columns: [Data.Loudness]
+				},
+				axis: {
+					x: {
+						label: "Data"
+					},
+					y: {
+						center: 0,
+						label: "Vcc"
+					}
+				}
+			}),
+			Light: c3.generate({
+				bindto: "#Light",
+				data: {
+					labels: true,
+					columns: [Data.Light]
+				},
+				axis: {
+					x: {
+						label: "Data"
+					},
+					y: {
+						label: "°L"
+					}
+				}
+			})
+		}
+
+		function CheckAndRestartData() {
+			if(Data.Temperature.length > 30) {
+				Data.Temperature = ["Temperature"];
+			}
+						
+			if(Data.Loudness.length > 30) {
+				Data.Loudness = ["Loudness"];
+			}
+			
+			if(Data.Light.length > 30) {
+				Data.Light = ["Light"];
+			}
+		};
+		
+		function GetAverage(metric) {
+			var avg = Acumulators[metric].count > 0? Acumulators[metric].sum / Acumulators[metric].count : 0;
+			Acumulators[metric].sum = 0;
+			Acumulators[metric].count = 0;
+			
+			return avg;
+		}
+		
+		setInterval(function () {
+			CheckAndRestartData();
+			var avgTemperature = GetAverage("Temperature");
+			var avgLoudness = GetAverage("Loudness");
+			var avgLight = GetAverage("Light");
+
+			Data.Temperature.push(avgTemperature.toFixed(2));
+			Data.Loudness.push(avgLoudness.toFixed(2));
+			Data.Light.push(avgLight.toFixed(2));
+
+			Charts.Temperature.load({
+				columns: [Data.Temperature]
+			});
+
+			Charts.Loudness.load({
+				columns: [Data.Loudness]
+			});
+			
+			Charts.Light.load({
+				columns: [Data.Light]
+			});
+		}, 5000);
+	</script>
+</body>
+
+</html>

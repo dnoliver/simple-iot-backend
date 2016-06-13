@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="stylesheets/style.css">
+
+	<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+	<!-- Optional theme -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+	<!-- Latest compiled and minified JavaScript -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+</head>
+
+<body>
+	<div class="container-fluid">
+		<div class="page-header">
+			<h1>Board Controller <small>Controll Clients</small></h1>
+		</div>
+
+		<div class="row">
+			<div class="col-xs-12">
+				<h2>Actions</h2>
+				<div class="btn-group btn-group-vertical" role="group" aria-label="...">
+					<button id="StartAlarmButton" type="button" class="btn btn-default">Start Alarm</button>
+					<button id="StopAlarmButton" type="button" class="btn btn-default">Stop Alarm</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-xs-12">
+				<h2>Rules</h2>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-xs-12">
+				<h3>Add Rule</h3>
+				<form class="form-inline">
+					<div class="form-group">
+						<select name="type" class="form-control">
+							<option value="When">When</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<select name="metric" class="form-control">
+							<option value="Temperature">Temperature</option>
+							<option value="Presure">Presure</option>
+							<option value="Humidity">Humidity</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<select name="condition" class="form-control">
+							<option value="Below">Below</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<input name="value" type="number" class="form-control" placeholder="value">
+					</div>
+					<div class="form-group">
+						<select name="target" class="form-control">
+							<option value="Alarm">Alarm</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<select name="action" class="form-control">
+							<option value="Start">Start</option>
+							<option value="Stop">Stop</option>
+						</select>
+					</div>
+					<button id="AddRuleButton" type="button" class="btn btn-primary">+</button>
+				</form>
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="col-xs-12">
+				<h3>Defined Rules</h3>
+				<table class="table table-striped">
+					<thead>
+						<th>Type</th>
+						<th>Metric</th>
+						<th>Condition</th>
+						<th>Value</th>
+						<th>Target</th>
+						<th>Action</th>
+					</thead>
+					<tbody id="RulesTable"></tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var socket = io();
+
+		var Acumulators = {
+			Temperature: {
+				count: 0,
+				sum: 0
+			},
+			Loudness: {
+				count: 0,
+				sum: 0
+			},
+			Light: {
+				count: 0,
+				sum: 0
+			}
+		};
+
+		socket.on('connect', function () {
+			console.log("SocketClient", "connect");
+			// register this as a controller
+			socket.emit("room", "controller");
+			// register this as a consumer
+			socket.emit("room", "consumer");
+			// receive producer data
+			socket.on("producer", function (data) {
+				if (data.temperature) {
+					Acumulators.Temperature.count++;
+					Acumulators.Temperature.sum += data.temperature;
+				}
+
+				if (data.loudness) {
+					Acumulators.Loudness.count++;
+					Acumulators.Loudness.sum += data.loudness;
+				}
+
+				if (data.light) {
+					Acumulators.Light.count++;
+					Acumulators.Light.sum += data.light;
+				}
+			});
+		});
+
+		var Controlls = {
+			StartAlarm: $("#StartAlarmButton"),
+			StopAlarm: $("#StopAlarmButton"),
+			AddRule: $("#AddRuleButton")
+		};
+
+		var Rules = {
+			When: {
+				Temperature: {
+					Above: {
+						40: {
+							Alarm: 'Start'
+						}
+					},
+					Equals: {
+						35: {
+							Alarm: 'Stop'
+						}
+					},
+					Below: {
+						30: {
+							Alarm: 'Start'
+						}
+					}
+				}
+			}
+		};
+
+		var RuleForm = {
+			type: $("[name=type]"),
+			metric: $("[name=metric]"),
+			condition: $("[name=condition]"),
+			value: $("[name=value]"),
+			action: $("[name=action]"),
+			target: $("[name=target]")
+		};
+
+		var Actions = {
+			StartAlarm: function () {
+				socket.emit("controller", {
+					command: "StartAlarm"
+				});
+			},
+			StopAlarm: function () {
+				socket.emit("controller", {
+					command: "StopAlarm"
+				});
+			}
+		};
+
+		Controlls.StartAlarm.click(function () {
+			Actions.StartAlarm();
+		});
+
+		Controlls.StopAlarm.click(function () {
+			Actions.StopAlarm();
+		});
+
+		Controlls.AddRule.click(function () {
+			var type = RuleForm.type.val();
+			var metric = RuleForm.metric.val();
+			var condition = RuleForm.condition.val();
+			var value = RuleForm.value.val();
+			var action = RuleForm.action.val();
+			var target = RuleForm.target.val();
+
+			if (!Rules[type]) Rules[type] = {};
+			if (!Rules[type][metric]) Rules[type][metric] = {};
+			if (!Rules[type][metric][condition]) Rules[type][metric][condition] = {};
+			if (!Rules[type][metric][condition][value]) Rules[type][metric][condition][value] = {};
+			if (!Rules[type][metric][condition][value][action]) Rules[type][metric][condition][value][action] = {};
+			Rules[type][metric][condition][value][action] = target;
+
+			RenderRules();
+		});
+
+		function RenderRules() {
+			$("#RulesTable").empty();
+
+			for (var type in Rules) {
+				for (var metric in Rules[type]) {
+					for (var condition in Rules[type][metric]) {
+						for (var value in Rules[type][metric][condition]) {
+							for (var target in Rules[type][metric][condition][value]) {
+								var action = Rules[type][metric][condition][value][target];
+								console.log(type, metric, condition, value, target, action);
+
+								var row = $("<tr></tr>");
+								row.append("<td>" + type + "</td>");
+								row.append("<td>" + metric + "</td>");
+								row.append("<td>" + condition + "</td>");
+								row.append("<td>" + value + "</td>");
+								row.append("<td>" + target + "</td>");
+								row.append("<td>" + action + "</td>");
+
+								$("#RulesTable").append(row);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		function GetAverage(metric) {
+			var avg = Acumulators[metric].sum / Acumulators[metric].count;
+			Acumulators[metric].sum = 0;
+			Acumulators[metric].count = 0;
+
+			return avg;
+		}
+
+		function ExecuteActions(targets) {
+			for (var target in targets) {
+				var action = targets[target];
+				console.log(action + target);
+				Actions[action + target]();
+			}
+		}
+
+		setInterval(function () {
+			var avgTemperature = GetAverage("Temperature");
+			var avgLoudness = GetAverage("Loudness");
+			var avgLight = GetAverage("Light");
+
+			for (var condition in Rules["When"]["Temperature"]) {
+				var shouldBreak = false;
+				switch (condition) {
+				case "Above":
+					for (var value in Rules["When"]["Temperature"]["Above"]) {
+						var val = parseInt(value);
+						if (val < avgTemperature) {
+							var targets = Rules["When"]["Temperature"]["Above"][value];
+							ExecuteActions(targets);
+							shouldBreak = true;
+						}
+					}
+					break;
+				case "Equals":
+					for (var value in Rules["When"]["Temperature"]["Equals"]) {
+						var val = parseInt(value);
+						if (val === avgTemperature) {
+							var targets = Rules["When"]["Temperature"]["Equals"][value];
+							for (var target in targets) {
+								ExecuteActions(targets);
+							}
+							shouldBreak = true;
+						}
+					}
+					break;
+				case "Below":
+					for (var value in Rules["When"]["Temperature"]["Below"]) {
+						var val = parseInt(value);
+						if (val > avgTemperature) {
+							var targets = Rules["When"]["Temperature"]["Below"][value];
+							for (var target in targets) {
+								ExecuteActions(targets);
+							}
+							shouldBreak = true;
+						}
+					}
+					break;
+				}
+
+				if (shouldBreak) {
+					break;
+				}
+			}
+		}, 5000);
+
+		RenderRules();
+	</script>
+</body>
+
+</html>

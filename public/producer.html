@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="stylesheets/style.css">
+
+	<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+	<!-- Optional theme -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+	<!-- Latest compiled and minified JavaScript -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+	<div class="container-fluid">
+		<div class="page-header">
+			<h1>Board Simulator <small>just for playing</small></h1>
+		</div>
+
+		<form class="form-horizontal">
+			<div class="form-group">
+				<label class="sr-only">Temperature</label>
+				<div class="input-group">
+					<div class="input-group-addon">Centigrads</div>
+					<input id="Temperature" type="number" class="form-control" placeholder="Temperature">
+					<div class="input-group-addon">°C</div>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="sr-only">Light</label>
+				<div class="input-group">
+					<div class="input-group-addon">Lux</div>
+					<input id="Light" type="number" class="form-control" placeholder="Light">
+					<div class="input-group-addon">°L</div>
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="sr-only">Loudness</label>
+				<div class="input-group">
+					<div class="input-group-addon">Voltage</div>
+					<input id="Loudness" type="number" class="form-control" placeholder="Loudness">
+					<div class="input-group-addon">Vcc</div>
+				</div>
+			</div>
+			<div class="btn-group btn-group-justified" role="group" aria-label="...">
+				<a id="StartSensing" class="btn btn-primary">Start Sensing</a>
+				<a id="StopSensing" class="btn btn-danger">Stop Sensing</a>
+			</div>
+		</form>
+	</div>
+
+	<script>
+		var socket = io();
+
+		socket.on('connect', function () {
+			console.log("SocketClient", "connect");
+			// register this as a producer
+			socket.emit("room", "producer");
+		});
+
+		var BoardModel = {
+			temperature: 0,
+			loudness: 0,
+			light: 0
+		}
+
+		var Values = {
+			Temperature: $("#Temperature"),
+			Loudness: $("#Loudness"),
+			Light: $("#Light")
+		}
+
+		var SensingInterval = null;
+
+		function StartSensing() {
+			if (SensingInterval) return;
+
+			SensingInterval = setInterval(function () {
+				socket.emit("producer", {
+					timestamp: Date.now(),
+					temperature: parseFloat(Values.Temperature.val()),
+					loudness: parseFloat(Values.Loudness.val()),
+					light: parseFloat(Values.Light.val())
+				});
+			}, 5000);
+		}
+
+		function StopSensing() {
+			if (SensingInterval) {
+				clearInterval(SensingInterval);
+				SensingInterval = null;
+			}
+		}
+
+		$("#StartSensing").click(function () {
+			StartSensing();
+		});
+
+		$("#StopSensing").click(function () {
+			StopSensing();
+		});
+	</script>
+</body>
+
+</html>
