@@ -52,13 +52,15 @@
 					<div class="form-group">
 						<select name="metric" class="form-control">
 							<option value="Temperature">Temperature</option>
-							<option value="Presure">Presure</option>
-							<option value="Humidity">Humidity</option>
+							<option value="Light">Light</option>
+							<option value="Loudness">Loudness</option>
 						</select>
 					</div>
 					<div class="form-group">
 						<select name="condition" class="form-control">
 							<option value="Below">Below</option>
+							<option value="Equals">Equals</option>
+							<option value="Above">Above</option>
 						</select>
 					</div>
 					<div class="form-group">
@@ -154,16 +156,6 @@
 						40: {
 							Alarm: 'Start'
 						}
-					},
-					Equals: {
-						35: {
-							Alarm: 'Stop'
-						}
-					},
-					Below: {
-						30: {
-							Alarm: 'Start'
-						}
 					}
 				}
 			}
@@ -211,8 +203,8 @@
 			if (!Rules[type][metric]) Rules[type][metric] = {};
 			if (!Rules[type][metric][condition]) Rules[type][metric][condition] = {};
 			if (!Rules[type][metric][condition][value]) Rules[type][metric][condition][value] = {};
-			if (!Rules[type][metric][condition][value][action]) Rules[type][metric][condition][value][action] = {};
-			Rules[type][metric][condition][value][action] = target;
+			if (!Rules[type][metric][condition][value][target]) Rules[type][metric][condition][value][target] = {};
+			Rules[type][metric][condition][value][target] = action;
 
 			RenderRules();
 		});
@@ -260,54 +252,58 @@
 			}
 		}
 
-		setInterval(function () {
-			var avgTemperature = GetAverage("Temperature");
-			var avgLoudness = GetAverage("Loudness");
-			var avgLight = GetAverage("Light");
-
-			for (var condition in Rules["When"]["Temperature"]) {
-				var shouldBreak = false;
+		function CheckRules(type, avgValue) {
+			var metric = Rules["When"][type];
+			
+			if(!metric) return;
+			
+			for (var condition in metric) {
 				switch (condition) {
 				case "Above":
-					for (var value in Rules["When"]["Temperature"]["Above"]) {
+					var values = metric[condition];
+					for (var value in values) {
 						var val = parseInt(value);
-						if (val < avgTemperature) {
-							var targets = Rules["When"]["Temperature"]["Above"][value];
+						if (val < avgValue) {
+							var targets = values[value];
 							ExecuteActions(targets);
 							shouldBreak = true;
 						}
 					}
 					break;
 				case "Equals":
-					for (var value in Rules["When"]["Temperature"]["Equals"]) {
+					var values = metric[condition];
+					for (var value in values) {
 						var val = parseInt(value);
-						if (val === avgTemperature) {
-							var targets = Rules["When"]["Temperature"]["Equals"][value];
-							for (var target in targets) {
-								ExecuteActions(targets);
-							}
+						if (val == avgValue) {
+							var targets = values[value];
+							ExecuteActions(targets);
 							shouldBreak = true;
 						}
 					}
 					break;
 				case "Below":
-					for (var value in Rules["When"]["Temperature"]["Below"]) {
+					var values = metric[condition];
+					for (var value in values) {
 						var val = parseInt(value);
-						if (val > avgTemperature) {
-							var targets = Rules["When"]["Temperature"]["Below"][value];
-							for (var target in targets) {
-								ExecuteActions(targets);
-							}
+						if (val > avgValue) {
+							var targets = values[value];
+							ExecuteActions(targets);
 							shouldBreak = true;
 						}
 					}
 					break;
 				}
-
-				if (shouldBreak) {
-					break;
-				}
 			}
+		}
+
+		setInterval(function () {
+			var avgTemperature = GetAverage("Temperature");
+			var avgLoudness = GetAverage("Loudness");
+			var avgLight = GetAverage("Light");
+
+			CheckRules("Temperature", avgTemperature);
+			CheckRules("Light", avgLight);
+			CheckRules("Loudness", avgLoudness);
 		}, 5000);
 
 		RenderRules();
